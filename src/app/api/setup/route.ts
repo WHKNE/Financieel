@@ -1,14 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-// One-time setup endpoint to seed the database on Vercel
-// Protected by a setup token from environment variables
-export async function POST(req: NextRequest) {
-  const { token } = await req.json();
-
-  if (!process.env.SETUP_TOKEN || token !== process.env.SETUP_TOKEN) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET() {
+  // Only run if no users exist yet (first-time setup)
+  const userCount = await prisma.user.count();
+  if (userCount > 0) {
+    return NextResponse.json({ message: "Database is al ingericht.", users: userCount });
   }
 
   const categories = [
@@ -42,5 +40,16 @@ export async function POST(req: NextRequest) {
     create: { name: "Beheerder", email: "admin@familie.nl", password: adminPassword, role: "admin" },
   });
 
-  return NextResponse.json({ success: true, message: "Database ingericht!" });
+  return NextResponse.json({
+    success: true,
+    message: "Database ingericht! Je kunt nu inloggen met admin@familie.nl / admin123",
+  });
+}
+
+export async function POST(req: Request) {
+  const { token } = await req.json();
+  if (!process.env.SETUP_TOKEN || token !== process.env.SETUP_TOKEN) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return GET();
 }
